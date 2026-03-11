@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  VENDOR
+  SUPERADMIN
+}
+
+enum RequestStatus {
+  PENDING
+  REVIEWING
+  QUOTED
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  role          Role      @default(CUSTOMER)
+  
+  shop            Shop?
+  orders          Order[]
+  customRequests  CustomRequest[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Shop {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  bio         String?  @db.Text
+  location    String?
+  craftType   String?
+  isApproved  Boolean  @default(false)
+  
+  vendorId    String   @unique
+  vendor      User     @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  products    Product[]
+  requests    CustomRequest[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  title         String
+  description   String   @db.Text
+  priceLKR      Float
+  priceUSD      Float
+  images        String[]
+  
+  material      String?
+  technique     String?
+  region        String?
+  isHandmade    Boolean  @default(true)
+  isEcoFriendly Boolean  @default(false)
+  badges        String[]
+  
+  shopId        String
+  shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      Category @relation(fields: [categoryId], references: [id])
+  orderItems    OrderItem[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  products    Product[]
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  totalLKR    Float
+  totalUSD    Float
+  status      OrderStatus @default(PENDING)
+  
+  customerId  String
+  customer    User        @relation(fields: [customerId], references: [id])
+  items       OrderItem[]
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  quantity    Int
+  priceLKR    Float
+  priceUSD    Float
+  
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+model CustomRequest {
+  id              String        @id @default(cuid())
+  requirements    String        @db.Text
+  status          RequestStatus @default(PENDING)
+  quotedPriceLKR  Float?
+  quotedPriceUSD  Float?
+  
+  customerId      String
+  customer        User          @relation(fields: [customerId], references: [id])
+  shopId          String
+  shop            Shop          @relation(fields: [shopId], references: [id])
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
